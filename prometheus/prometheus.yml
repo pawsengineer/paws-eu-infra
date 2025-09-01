@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 1m
+
+scrape_configs:
+  - job_name: "predicatorv2"
+    scrape_interval: 15s
+    static_configs:
+    - targets: ["192.168.68.110:8082",  "192.168.68.110:8083", "192.168.68.110:8085"]
+  - job_name: "moose_cheese"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["35.247.179.155"]
+  - job_name: "mooose_butter"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["34.87.104.33"]
+  - job_name: "mooose_honey"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["34.126.69.19"]
+  - job_name: "mooose_caesar"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["34.87.188.88"]
+  - job_name: "moose_hotchili"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["35.197.149.101"]
+  - job_name: "murphy_pushgateway"
+    scrape_interval: 1s
+    static_configs:
+    - targets: ["127.0.0.1:9091"]
+
+# Rules and alerts are read from the specified file(s)
+rule_files:
+  - rules.yml
+
+# Alerting specifies settings related to the Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+      - targets:
+        # Alertmanager's default port is 9093
+        - localhost:9093
