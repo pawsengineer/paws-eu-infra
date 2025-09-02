@@ -1,8 +1,49 @@
 volumes:
-  prometheus_data: {}
-  grafana_data: {}
+  prometheus_data:
+  grafana_data: 
+  nginx-certs:
+  nginx-vhost:
+  nginx-html:
+  acme-state:
+
+networks:
+  paws-network:
+    driver: bridge
 
 services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+    networks:
+      - paws-network
+    restart: unless-stopped
+
+  letsencrypt-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: letsencrypt-companion
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - acme-state:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=pawsengineer@gmail.com
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+    networks:
+      - paws-network
+    depends_on:
+      - nginx-proxy
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -17,31 +58,52 @@ services:
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-lifecycle"
-    network_mode: "host"
+    expose:
+      - "9090"
+    networks:
+      - paws-network
+    environment:
+      - VIRTUAL_HOST=prom.paws.engineer
+      - VIRTUAL_PORT=9090
+      - LETSENCRYPT_HOST=prom.paws.engineer
+      - LETSENCRYPT_EMAIL=pawsengineer@gmail.com
 
   pushgateway:
     image: prom/pushgateway:latest
-    container_name: prometheus_pushgateway
-    network_mode: "host"
-    restart: always
+    container_name: pushgateway
+    restart: unless-stopped
+    expose:
+      - "9091"
+    networks:
+      - paws-network
 
   alertmanager:
     image: quay.io/prometheus/alertmanager
     container_name: alertmanager
-    restart: always
+    restart: unless-stopped
+    expose:
+      - "9093"
+    networks:
+      - paws-network
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
-    network_mode: "host"
 
   grafana:
     image: grafana/grafana:11.3.1
     container_name: grafana
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - paws-network
     volumes:
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
-    restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: "!Season02"
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    network_mode: "host"
+      - GF_SECURITY_ADMIN_PASSWORD="!Season02"
+      - GF_USERS_ALLOW_SIGN_UP="false"
+      - VIRTUAL_HOST=ts.paws.engineer
+      - VIRTUAL_PORT=3000
+      - LETSENCRYPT_HOST=ts.paws.engineer
+      - LETSENCRYPT_EMAIL=pawsengineer@gmail.com
